@@ -28,6 +28,7 @@ def fetch_google_news(topic, max_articles=3):
 
         print(f"Title: {article.title}")
         print(f"Source: {article.source.title}")
+        print(f"Published: {article.published}")  # <-- Added publication date
         print(f"Real Link: {real_link}\n")
         print("-" * 40)
 
@@ -36,5 +37,4 @@ def fetch_google_news(topic, max_articles=3):
 
 
 if __name__ == "__main__":
-    # You can now easily swap this out or accept it via command-line arguments (sys.argv)
     fetch_google_news("San Jose")
