@@ -4,6 +4,7 @@ import urllib.parse
 
 import feedparser
 from googlenewsdecoder import gnewsdecoder
+import trafilatura
 
 
 def fetch_google_news(topic, max_articles=3):
@@ -28,8 +29,23 @@ def fetch_google_news(topic, max_articles=3):
 
         print(f"Title: {article.title}")
         print(f"Source: {article.source.title}")
-        print(f"Published: {article.published}")  # <-- Added publication date
-        print(f"Real Link: {real_link}\n")
+        print(f"Published: {article.published}")
+        print(f"Real Link: {real_link}")
+
+        # --- Trafilatura Content Extraction ---
+        print("Extracting content with Trafilatura...")
+        downloaded_html = trafilatura.fetch_url(real_link)
+
+        if downloaded_html:
+            extracted_text = trafilatura.extract(downloaded_html)
+            if extracted_text:
+                # Printing a snippet to avoid flooding the console
+                print(f"Article Preview:\n{extracted_text[:300]}...\n")
+            else:
+                print("Article Preview: Could not extract text content.\n")
+        else:
+            print("Article Preview: Failed to download the page.\n")
+
         print("-" * 40)
 
         delay = random.uniform(1.5, 3.5)
@@ -37,4 +53,4 @@ def fetch_google_news(topic, max_articles=3):
 
 
 if __name__ == "__main__":
-    fetch_google_news("San Jose")
+    fetch_google_news("San Francisco")
