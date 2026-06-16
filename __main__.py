@@ -15,7 +15,7 @@ from googlenewsdecoder import gnewsdecoder
 from loguru import logger
 
 # Configuration
-TICKERS = ["AAPL", "MSFT", "TSLA"]
+TICKERS = ["AAPL", "MSFT", "TSLA", "SPCX", "T", "TGT", "PCG"]
 OLLAMA_MODEL = "gemma4:e4b"
 BLACKLIST_FILE = "domain_blacklist.json"
 READ_ARTICLES_FILE = "read_articles.json"
