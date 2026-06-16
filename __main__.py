@@ -63,6 +63,7 @@ def save_analysis(article_title, article_link, ticker_data, source, filepath):
             "title": article_title,
             "link": article_link,
             "ticker": item.get("ticker", "UNKNOWN"),
+            "sentiment": item.get("sentiment", "Neutral"),
             "analysis": item.get("reason", "No reason provided.")
         })
 
@@ -74,14 +75,16 @@ BLACKLIST = load_json_set(BLACKLIST_FILE)
 READ_ARTICLES = load_json_set(READ_ARTICLES_FILE)
 
 def analyze_for_stocks(text):
-    """Passes extracted text to local Ollama instance to hunt for stock tickers."""
+    """Passes extracted text to local Ollama instance to hunt for stock tickers and analyze sentiment."""
     prompt = f"""You are a financial analyst. Read the following news article and identify any publicly traded companies mentioned. 
 
 Output your response STRICTLY as a JSON list of objects. Do not include any conversational text. Use this exact format:
 [
-    {{"ticker": "AAPL", "reason": "1-sentence reason why it is mentioned and potential impact"}},
-    {{"ticker": "MSFT", "reason": "1-sentence reason why it is mentioned and potential impact"}}
+    {{"ticker": "AAPL", "sentiment": "Positive", "reason": "1-sentence reason why it is mentioned and potential impact"}},
+    {{"ticker": "MSFT", "sentiment": "Negative", "reason": "1-sentence reason why it is mentioned and potential impact"}}
 ]
+
+The "sentiment" field MUST be exactly one of: "Positive", "Negative", or "Neutral".
 
 If no publicly traded companies are mentioned, output an empty list: []
 
