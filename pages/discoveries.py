@@ -26,24 +26,41 @@ if not df_discoveries.empty:
     # Convert timestamp to datetime objects
     df_discoveries['timestamp'] = pd.to_datetime(df_discoveries['timestamp'])
     
-    # 1. Date Range Filter
     st.subheader("Filter Discoveries")
+    
+    # 1. Setup layout for filters
+    col1, col2 = st.columns(2)
+    
     default_start = datetime.now().date() - timedelta(days=3)
     default_end = datetime.now().date()
     
-    date_range = st.date_input(
-        "Select Date Range",
-        value=(default_start, default_end),
-        max_value=datetime.now().date()
-    )
+    with col1:
+        date_range = st.date_input(
+            "Select Date Range",
+            value=(default_start, default_end),
+            max_value=datetime.now().date()
+        )
+        
+    with col2:
+        available_tickers = sorted(df_discoveries['ticker'].unique())
+        selected_tickers = st.multiselect(
+            "Filter by Ticker(s)", 
+            options=available_tickers,
+            help="Leave empty to show all tickers"
+        )
     
-    # Apply the filter based on user selection
+    # Apply Date filter
     if len(date_range) == 2:
         start_date, end_date = date_range
     else:
         start_date = end_date = date_range[0]
         
     mask = (df_discoveries['timestamp'].dt.date >= start_date) & (df_discoveries['timestamp'].dt.date <= end_date)
+    
+    # Apply Ticker filter
+    if selected_tickers:
+        mask = mask & (df_discoveries['ticker'].isin(selected_tickers))
+        
     df_filtered = df_discoveries.loc[mask]
 
     if not df_filtered.empty:
@@ -60,6 +77,6 @@ if not df_discoveries.empty:
         
         st.dataframe(styled_df, use_container_width=True)
     else:
-        st.warning("No discoveries found in the selected date range.")
+        st.warning("No discoveries found matching your filters.")
 else:
     st.warning("No stock discoveries collected yet. Waiting for the JSON to populate...")

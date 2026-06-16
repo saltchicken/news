@@ -26,32 +26,49 @@ if not df_portfolio.empty:
     # Convert timestamp to datetime objects
     df_portfolio['timestamp'] = pd.to_datetime(df_portfolio['timestamp'])
     
-    # 1. Date Range Filter
     st.subheader("Filter News")
+    
+    # 1. Setup layout for filters
+    col1, col2 = st.columns(2)
+    
     default_start = datetime.now().date() - timedelta(days=3)
     default_end = datetime.now().date()
     
-    date_range = st.date_input(
-        "Select Date Range",
-        value=(default_start, default_end),
-        max_value=datetime.now().date()
-    )
+    with col1:
+        date_range = st.date_input(
+            "Select Date Range",
+            value=(default_start, default_end),
+            max_value=datetime.now().date()
+        )
+        
+    with col2:
+        available_tickers = sorted(df_portfolio['ticker'].unique())
+        selected_tickers = st.multiselect(
+            "Filter by Ticker(s)", 
+            options=available_tickers,
+            help="Leave empty to show all portfolio tickers"
+        )
     
-    # Apply the filter based on user selection
+    # Apply Date filter
     if len(date_range) == 2:
         start_date, end_date = date_range
     else:
         start_date = end_date = date_range[0]
         
     mask = (df_portfolio['timestamp'].dt.date >= start_date) & (df_portfolio['timestamp'].dt.date <= end_date)
+    
+    # Apply Ticker filter
+    if selected_tickers:
+        mask = mask & (df_portfolio['ticker'].isin(selected_tickers))
+        
     df_filtered = df_portfolio.loc[mask]
 
     if not df_filtered.empty:
         # 2. Quick Metrics
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total Articles", len(df_filtered))
-        col2.metric("Positive Sentiment", len(df_filtered[df_filtered['sentiment'] == 'Positive']))
-        col3.metric("Negative Sentiment", len(df_filtered[df_filtered['sentiment'] == 'Negative']))
+        m_col1, m_col2, m_col3 = st.columns(3)
+        m_col1.metric("Total Articles", len(df_filtered))
+        m_col2.metric("Positive Sentiment", len(df_filtered[df_filtered['sentiment'] == 'Positive']))
+        m_col3.metric("Negative Sentiment", len(df_filtered[df_filtered['sentiment'] == 'Negative']))
 
         # 3. Sentiment Bar Chart
         st.subheader("Sentiment by Ticker")
@@ -76,6 +93,6 @@ if not df_portfolio.empty:
         
         st.dataframe(styled_df, use_container_width=True)
     else:
-        st.warning("No portfolio news found in the selected date range.")
+        st.warning("No portfolio news found matching your filters.")
 else:
     st.warning("No portfolio news collected yet. Waiting for the JSON to populate...")
