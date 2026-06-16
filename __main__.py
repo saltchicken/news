@@ -20,6 +20,7 @@ OLLAMA_MODEL = "gemma4:e4b"
 BLACKLIST_FILE = "domain_blacklist.json"
 READ_ARTICLES_FILE = "read_articles.json"
 DISCOVERIES_FILE = "stock_discoveries.json"
+PORTFOLIO_NEWS_FILE = "portfolio_news.json"
 
 # Configure Loguru
 logger.remove()
@@ -44,19 +45,19 @@ def save_json_set(data_set, filepath):
     with open(filepath, "w") as f:
         json.dump(list(data_set), f)
 
-def save_discovery(article_title, article_link, ticker_data, source):
-    """Appends individual AI ticker discoveries to a structured JSON file."""
-    discoveries = []
-    if os.path.exists(DISCOVERIES_FILE):
+def save_analysis(article_title, article_link, ticker_data, source, filepath):
+    """Appends individual AI ticker analysis to the specified structured JSON file."""
+    records = []
+    if os.path.exists(filepath):
         try:
-            with open(DISCOVERIES_FILE, "r") as f:
-                discoveries = json.load(f)
+            with open(filepath, "r") as f:
+                records = json.load(f)
         except json.JSONDecodeError:
             pass
 
     # Append a separate record for each ticker found in the article
     for item in ticker_data:
-        discoveries.append({
+        records.append({
             "timestamp": datetime.now().isoformat(),
             "source": source,
             "title": article_title,
@@ -65,8 +66,8 @@ def save_discovery(article_title, article_link, ticker_data, source):
             "analysis": item.get("reason", "No reason provided.")
         })
 
-    with open(DISCOVERIES_FILE, "w") as f:
-        json.dump(discoveries, f, indent=4)
+    with open(filepath, "w") as f:
+        json.dump(records, f, indent=4)
 
 # Initialize global state
 BLACKLIST = load_json_set(BLACKLIST_FILE)
@@ -105,8 +106,8 @@ Article text:
         logger.error(f"Ollama connection failed: {e}")
         return "ERROR"
 
-def process_article(article):
-    """Decodes, extracts, and analyzes a single news article for stock ideas."""
+def process_article(article, output_filepath):
+    """Decodes, extracts, and analyzes a single news article, saving to the designated file."""
     decoded = gnewsdecoder(article.link)
     real_link = decoded.get("decoded_url") if decoded.get("status") else article.link
 
@@ -157,9 +158,9 @@ def process_article(article):
     else:
         # Log the discoveries and save them
         tickers = [item.get("ticker", "UNKNOWN") for item in analysis_list]
-        logger.info(f"AI Stock Discovery [{article.source.title}]: Found {', '.join(tickers)}")
+        logger.info(f"AI Stock Analysis [{article.source.title}]: Found {', '.join(tickers)}")
         
-        save_discovery(article.title, real_link, analysis_list, article.source.title)
+        save_analysis(article.title, real_link, analysis_list, article.source.title, output_filepath)
 
     # Mark as read and save state
     READ_ARTICLES.add(real_link)
@@ -167,7 +168,7 @@ def process_article(article):
 
     return True
 
-def fetch_news_for_query(query, header_message, target_articles=2, max_attempts=15):
+def fetch_news_for_query(query, header_message, output_filepath, target_articles=2, max_attempts=15):
     """Fetches Google News RSS for a query and processes until target is met or max is reached."""
     logger.debug(header_message)
     
@@ -188,7 +189,7 @@ def fetch_news_for_query(query, header_message, target_articles=2, max_attempts=
             break
 
         total_attempts += 1
-        success = process_article(article)
+        success = process_article(article, output_filepath)
 
         if success:
             successful_articles += 1
@@ -199,7 +200,12 @@ def fetch_discovery_news(target_articles=3):
     topics = ["emerging technology breakthrough", "business acquisition rumors", "supply chain disruption"]
     
     for topic in topics:
-        fetch_news_for_query(topic, f"Hunting for stocks in topic: {topic}", target_articles)
+        fetch_news_for_query(
+            query=topic, 
+            header_message=f"Hunting for stocks in topic: {topic}", 
+            output_filepath=DISCOVERIES_FILE, 
+            target_articles=target_articles
+        )
 
 def fetch_stock_news(target_articles=2):
     """Fetches top financial news for predefined tickers using Google News RSS."""
@@ -207,16 +213,21 @@ def fetch_stock_news(target_articles=2):
     
     for ticker in TICKERS:
         query = f"{ticker} stock market"
-        fetch_news_for_query(query, f"Latest News for {ticker}:", target_articles)
+        fetch_news_for_query(
+            query=query, 
+            header_message=f"Latest News for {ticker}:", 
+            output_filepath=PORTFOLIO_NEWS_FILE, 
+            target_articles=target_articles
+        )
 
 def scheduled_job():
     """Wrapper function to run all news gathering tasks."""
     logger.debug(f"--- RUNNING SCHEDULED FETCH: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
     
-    # 1. Look for new stock ideas in general tech/business news
+    # 1. Look for new stock ideas in general tech/business news (Saves to stock_discoveries.json)
     fetch_discovery_news(target_articles=2)
     
-    # 2. Check up on the existing portfolio
+    # 2. Check up on the existing portfolio (Saves to portfolio_news.json)
     fetch_stock_news(target_articles=1)
 
 if __name__ == "__main__":
