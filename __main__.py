@@ -109,7 +109,7 @@ Article text:
         logger.error(f"Ollama connection failed: {e}")
         return "ERROR"
 
-def process_article(article, output_filepath):
+def process_article(article, output_filepath, allowed_tickers=None):
     """Decodes, extracts, and analyzes a single news article, saving to the designated file."""
     decoded = gnewsdecoder(article.link)
     real_link = decoded.get("decoded_url") if decoded.get("status") else article.link
@@ -155,9 +155,16 @@ def process_article(article, output_filepath):
     if analysis_list == "ERROR":
         return False
 
+    # Filter out tickers that are not in our allowed list (if a list was provided)
+    if allowed_tickers:
+        analysis_list = [
+            item for item in analysis_list 
+            if item.get("ticker") in allowed_tickers
+        ]
+
     # Check if the list is empty
     if not analysis_list:
-        logger.debug("AI Analysis: No actionable stocks found in this article.")
+        logger.debug("AI Analysis: No actionable/allowed stocks found in this article.")
     else:
         # Log the discoveries and save them
         tickers = [item.get("ticker", "UNKNOWN") for item in analysis_list]
@@ -171,7 +178,7 @@ def process_article(article, output_filepath):
 
     return True
 
-def fetch_news_for_query(query, header_message, output_filepath, target_articles=2, max_attempts=15):
+def fetch_news_for_query(query, header_message, output_filepath, target_articles=2, max_attempts=15, allowed_tickers=None):
     """Fetches Google News RSS for a query and processes until target is met or max is reached."""
     logger.debug(header_message)
     
@@ -192,7 +199,7 @@ def fetch_news_for_query(query, header_message, output_filepath, target_articles
             break
 
         total_attempts += 1
-        success = process_article(article, output_filepath)
+        success = process_article(article, output_filepath, allowed_tickers)
 
         if success:
             successful_articles += 1
@@ -220,7 +227,8 @@ def fetch_stock_news(target_articles=2):
             query=query, 
             header_message=f"Latest News for {ticker}:", 
             output_filepath=PORTFOLIO_NEWS_FILE, 
-            target_articles=target_articles
+            target_articles=target_articles,
+            allowed_tickers=TICKERS
         )
 
 def scheduled_job():
