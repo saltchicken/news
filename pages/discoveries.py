@@ -72,10 +72,16 @@ if not df_discoveries.empty:
         # 3. Interactive Data Table (with colored text)
         st.subheader("Discovery Feed")
         
-        display_df = df_filtered[['timestamp', 'ticker', 'sentiment', 'analysis', 'source', 'title']]
+        display_df = df_filtered[['timestamp', 'ticker', 'sentiment', 'analysis', 'source', 'title', 'link']]
         styled_df = display_df.style.map(style_sentiment, subset=['sentiment'])
         
-        st.dataframe(styled_df, use_container_width=True)
+        st.dataframe(
+            styled_df, 
+            use_container_width=True,
+            column_config={
+                "link": st.column_config.LinkColumn("Article Link", display_text="Open Article")
+            }
+        )
     else:
         st.warning("No discoveries found matching your filters.")
 else:

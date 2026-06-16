@@ -88,10 +88,16 @@ if not df_portfolio.empty:
         st.subheader("Recent Analysis Feed")
         
         # Filter columns first, then apply the style map to the 'sentiment' column
-        display_df = df_filtered[['timestamp', 'ticker', 'sentiment', 'analysis', 'title']]
+        display_df = df_filtered[['timestamp', 'ticker', 'sentiment', 'analysis', 'title', 'link']]
         styled_df = display_df.style.map(style_sentiment, subset=['sentiment'])
         
-        st.dataframe(styled_df, use_container_width=True)
+        st.dataframe(
+            styled_df, 
+            use_container_width=True,
+            column_config={
+                "link": st.column_config.LinkColumn("Article Link", display_text="Open Article")
+            }
+        )
     else:
         st.warning("No portfolio news found matching your filters.")
 else:
