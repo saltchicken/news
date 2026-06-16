@@ -1,6 +1,7 @@
 import json
 import os
 import random
+import re
 import sys
 import time
 import urllib.parse
@@ -43,8 +44,8 @@ def save_json_set(data_set, filepath):
     with open(filepath, "w") as f:
         json.dump(list(data_set), f)
 
-def save_discovery(article_title, article_link, analysis, source):
-    """Appends a new AI discovery to a structured JSON file."""
+def save_discovery(article_title, article_link, ticker_data, source):
+    """Appends individual AI ticker discoveries to a structured JSON file."""
     discoveries = []
     if os.path.exists(DISCOVERIES_FILE):
         try:
@@ -53,13 +54,16 @@ def save_discovery(article_title, article_link, analysis, source):
         except json.JSONDecodeError:
             pass
 
-    discoveries.append({
-        "timestamp": datetime.now().isoformat(),
-        "source": source,
-        "title": article_title,
-        "link": article_link,
-        "analysis": analysis
-    })
+    # Append a separate record for each ticker found in the article
+    for item in ticker_data:
+        discoveries.append({
+            "timestamp": datetime.now().isoformat(),
+            "source": source,
+            "title": article_title,
+            "link": article_link,
+            "ticker": item.get("ticker", "UNKNOWN"),
+            "analysis": item.get("reason", "No reason provided.")
+        })
 
     with open(DISCOVERIES_FILE, "w") as f:
         json.dump(discoveries, f, indent=4)
@@ -72,17 +76,31 @@ def analyze_for_stocks(text):
     """Passes extracted text to local Ollama instance to hunt for stock tickers."""
     prompt = f"""You are a financial analyst. Read the following news article and identify any publicly traded companies mentioned. 
 
-Return a list in the following format:
-- TICKER: [1-sentence reason why it is mentioned and potential impact]
+Output your response STRICTLY as a JSON list of objects. Do not include any conversational text. Use this exact format:
+[
+    {{"ticker": "AAPL", "reason": "1-sentence reason why it is mentioned and potential impact"}},
+    {{"ticker": "MSFT", "reason": "1-sentence reason why it is mentioned and potential impact"}}
+]
 
-If no publicly traded companies are mentioned in the text, respond strictly with 'NO TICKERS FOUND'.
+If no publicly traded companies are mentioned, output an empty list: []
 
 Article text:
 {text}"""
     
     try:
         response = ollama.generate(model=OLLAMA_MODEL, prompt=prompt)
-        return response.get("response", "No analysis generated.").strip()
+        raw_output = response.get("response", "").strip()
+        
+        # Clean up potential markdown formatting (e.g., ```json ... ```)
+        cleaned_output = re.sub(r"```[a-zA-Z]*\n|```", "", raw_output).strip()
+        
+        # Parse the JSON string into a Python list
+        tickers_found = json.loads(cleaned_output)
+        return tickers_found
+
+    except json.JSONDecodeError:
+        logger.error(f"Failed to parse LLM JSON output. Raw output: {raw_output}")
+        return "ERROR"
     except Exception as e:
         logger.error(f"Ollama connection failed: {e}")
         return "ERROR"
@@ -128,18 +146,20 @@ def process_article(article):
         return False
 
     logger.debug(f"Scanning for potential investments with {OLLAMA_MODEL}...")
-    analysis = analyze_for_stocks(extracted_text)
+    analysis_list = analyze_for_stocks(extracted_text)
     
-    if analysis == "ERROR":
+    if analysis_list == "ERROR":
         return False
 
-    # Filter out empty results to the DEBUG level, elevate discoveries to INFO
-    if "NO TICKERS FOUND" in analysis.upper():
+    # Check if the list is empty
+    if not analysis_list:
         logger.debug("AI Analysis: No actionable stocks found in this article.")
     else:
-        logger.info(f"AI Stock Discovery [{article.source.title}]:\n{analysis}\n")
-        # Save the discovery locally
-        save_discovery(article.title, real_link, analysis, article.source.title)
+        # Log the discoveries and save them
+        tickers = [item.get("ticker", "UNKNOWN") for item in analysis_list]
+        logger.info(f"AI Stock Discovery [{article.source.title}]: Found {', '.join(tickers)}")
+        
+        save_discovery(article.title, real_link, analysis_list, article.source.title)
 
     # Mark as read and save state
     READ_ARTICLES.add(real_link)
