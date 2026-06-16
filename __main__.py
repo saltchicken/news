@@ -17,6 +17,8 @@ from loguru import logger
 TICKERS = ["AAPL", "MSFT", "TSLA"]
 OLLAMA_MODEL = "gemma4:e4b"
 BLACKLIST_FILE = "domain_blacklist.json"
+READ_ARTICLES_FILE = "read_articles.json"
+DISCOVERIES_FILE = "stock_discoveries.json"
 
 # Configure Loguru
 logger.remove()
@@ -26,23 +28,45 @@ logger.add(
     format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | {message}"
 )
 
-def load_blacklist():
-    """Loads the blacklisted domains from a local file."""
-    if os.path.exists(BLACKLIST_FILE):
+def load_json_set(filepath):
+    """Loads a JSON list as a set from a local file."""
+    if os.path.exists(filepath):
         try:
-            with open(BLACKLIST_FILE, "r") as f:
+            with open(filepath, "r") as f:
                 return set(json.load(f))
         except json.JSONDecodeError:
             return set()
     return set()
 
-def save_blacklist(blacklist_set):
-    """Saves the blacklisted domains to a local file."""
-    with open(BLACKLIST_FILE, "w") as f:
-        json.dump(list(blacklist_set), f)
+def save_json_set(data_set, filepath):
+    """Saves a set as a JSON list to a local file."""
+    with open(filepath, "w") as f:
+        json.dump(list(data_set), f)
 
-# Initialize global blacklist
-BLACKLIST = load_blacklist()
+def save_discovery(article_title, article_link, analysis, source):
+    """Appends a new AI discovery to a structured JSON file."""
+    discoveries = []
+    if os.path.exists(DISCOVERIES_FILE):
+        try:
+            with open(DISCOVERIES_FILE, "r") as f:
+                discoveries = json.load(f)
+        except json.JSONDecodeError:
+            pass
+
+    discoveries.append({
+        "timestamp": datetime.now().isoformat(),
+        "source": source,
+        "title": article_title,
+        "link": article_link,
+        "analysis": analysis
+    })
+
+    with open(DISCOVERIES_FILE, "w") as f:
+        json.dump(discoveries, f, indent=4)
+
+# Initialize global state
+BLACKLIST = load_json_set(BLACKLIST_FILE)
+READ_ARTICLES = load_json_set(READ_ARTICLES_FILE)
 
 def analyze_for_stocks(text):
     """Passes extracted text to local Ollama instance to hunt for stock tickers."""
@@ -73,6 +97,11 @@ def process_article(article):
         logger.debug("Skipped: No valid URL available.")
         return False
 
+    # Check if already processed
+    if real_link in READ_ARTICLES:
+        logger.debug(f"Skipped: Article already read ({article.title}).")
+        return False
+
     domain = urllib.parse.urlparse(real_link).netloc
 
     # Check Blacklist
@@ -89,7 +118,7 @@ def process_article(article):
     if not downloaded_html:
         logger.warning(f"Failed to download the page. Adding '{domain}' to blacklist.")
         BLACKLIST.add(domain)
-        save_blacklist(BLACKLIST)
+        save_json_set(BLACKLIST, BLACKLIST_FILE)
         return False
 
     extracted_text = trafilatura.extract(downloaded_html)
@@ -109,6 +138,12 @@ def process_article(article):
         logger.debug("AI Analysis: No actionable stocks found in this article.")
     else:
         logger.info(f"AI Stock Discovery [{article.source.title}]:\n{analysis}\n")
+        # Save the discovery locally
+        save_discovery(article.title, real_link, analysis, article.source.title)
+
+    # Mark as read and save state
+    READ_ARTICLES.add(real_link)
+    save_json_set(READ_ARTICLES, READ_ARTICLES_FILE)
 
     return True
 
