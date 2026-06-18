@@ -13,6 +13,9 @@ import trafilatura
 import ollama
 from googlenewsdecoder import gnewsdecoder
 from loguru import logger
+from curl_cffi import requests as curl_requests
+from playwright.sync_api import sync_playwright
+from bs4 import BeautifulSoup
 
 # Configuration
 TICKERS = ["AAPL", "MSFT", "TSLA", "SPCX", "T", "TGT", "PCG"]
@@ -109,70 +112,109 @@ Article text:
         logger.error(f"Ollama connection failed: {e}")
         return "ERROR"
 
+def fetch_tier_1_curl(url):
+    """Tier 1: High-speed request mimicking a standard Chrome browser TLS fingerprint."""
+    try:
+        response = curl_requests.get(url, impersonate="chrome", timeout=15)
+        # 403 Forbidden and 401 Unauthorized are standard bot-blocks
+        if response.status_code in [200, 201, 202]:
+            return response.text
+        logger.debug(f"Tier 1 failed with status code: {response.status_code}")
+        return None
+    except Exception as e:
+        logger.debug(f"Tier 1 exception: {e}")
+        return None
+
+def fetch_tier_2_playwright(url):
+    """Tier 2: Headless browser to render JavaScript and bypass moderate protections."""
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            )
+            # Wait until the DOM is loaded, no need to wait for every tracking script
+            page.goto(url, wait_until="domcontentloaded", timeout=20000)
+            html = page.content()
+            browser.close()
+            return html
+    except Exception as e:
+        logger.debug(f"Tier 2 Playwright failed: {e}")
+        return None
+
+def clean_rss_summary(html_content):
+    """Utility to extract clean text from messy RSS summary payloads."""
+    if not html_content:
+        return ""
+    soup = BeautifulSoup(html_content, "html.parser")
+    return soup.get_text(separator=" ", strip=True)
+
 def process_article(article, output_filepath, allowed_tickers=None):
-    """Decodes, extracts, and analyzes a single news article, saving to the designated file."""
+    """Decodes, extracts, and analyzes a single news article through a tiered fetching system."""
     decoded = gnewsdecoder(article.link)
     real_link = decoded.get("decoded_url") if decoded.get("status") else article.link
 
-    # Validate URL
     if not real_link or not (real_link.startswith("http://") or real_link.startswith("https://")):
-        logger.debug("Skipped: No valid URL available.")
         return False
 
-    # Check if already processed
     if real_link in READ_ARTICLES:
-        logger.debug(f"Skipped: Article already read ({article.title}).")
         return False
 
     domain = urllib.parse.urlparse(real_link).netloc
 
-    # Check Blacklist
     if domain in BLACKLIST:
         logger.debug(f"Skipped: Domain '{domain}' is blacklisted.")
         return False
 
-    logger.debug(f"Processing Article: {article.title}")
-    logger.debug(f"Source: {article.source.title} | Link: {real_link}")
+    logger.debug(f"Processing: {article.title[:50]}... | {domain}")
 
-    logger.debug("Extracting content with Trafilatura...")
-    downloaded_html = trafilatura.fetch_url(real_link)
-
-    if not downloaded_html:
-        logger.warning(f"Failed to download the page. Adding '{domain}' to blacklist.")
-        BLACKLIST.add(domain)
-        save_json_set(BLACKLIST, BLACKLIST_FILE)
-        return False
-
-    extracted_text = trafilatura.extract(downloaded_html)
+    # --- THE WATERFALL FETCHING SYSTEM ---
     
-    if not extracted_text:
-        logger.debug("Skipped: Could not extract text content.")
-        return False
+    downloaded_html = None
+    extracted_text = None
 
-    logger.debug(f"Scanning for potential investments with {OLLAMA_MODEL}...")
+    # Tier 1: curl_cffi
+    downloaded_html = fetch_tier_1_curl(real_link)
+    
+    # Tier 2: Playwright Escalation
+    if not downloaded_html:
+        logger.debug(f"Escalating to Tier 2 (Playwright) for {domain}...")
+        downloaded_html = fetch_tier_2_playwright(real_link)
+
+    # Attempt Text Extraction if HTML was acquired
+    if downloaded_html:
+        extracted_text = trafilatura.extract(downloaded_html)
+
+    # Tier 3: RSS Summary Failsafe
+    if not extracted_text:
+        logger.warning(f"Tiers 1 & 2 failed for {domain}. Engaging Tier 3 RSS Failsafe.")
+        raw_summary = getattr(article, "summary", "") or getattr(article, "description", "")
+        extracted_text = clean_rss_summary(raw_summary)
+        
+        # If even the failsafe yields practically nothing, only then do we blacklist
+        if not extracted_text or len(extracted_text) < 100:
+            logger.warning(f"Complete failure. Blacklisting '{domain}'.")
+            BLACKLIST.add(domain)
+            save_json_set(BLACKLIST, BLACKLIST_FILE)
+            return False
+
+    # --- PROCEED WITH AI ANALYSIS ---
+    
     analysis_list = analyze_for_stocks(extracted_text)
     
     if analysis_list == "ERROR":
         return False
 
-    # Filter out tickers that are not in our allowed list (if a list was provided)
     if allowed_tickers:
-        analysis_list = [
-            item for item in analysis_list 
-            if item.get("ticker") in allowed_tickers
-        ]
+        analysis_list = [item for item in analysis_list if item.get("ticker") in allowed_tickers]
 
-    # Check if the list is empty
     if not analysis_list:
         logger.debug("AI Analysis: No actionable/allowed stocks found in this article.")
     else:
-        # Log the discoveries and save them
         tickers = [item.get("ticker", "UNKNOWN") for item in analysis_list]
-        logger.info(f"AI Stock Analysis [{article.source.title}]: Found {', '.join(tickers)}")
-        
+        logger.info(f"AI Analysis [{article.source.title}]: Found {', '.join(tickers)}")
         save_analysis(article.title, real_link, analysis_list, article.source.title, output_filepath)
 
-    # Mark as read and save state
     READ_ARTICLES.add(real_link)
     save_json_set(READ_ARTICLES, READ_ARTICLES_FILE)
 
