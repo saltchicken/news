@@ -178,7 +178,7 @@ def process_article(article, output_filepath, allowed_tickers=None):
 
     return True
 
-def fetch_news_for_query(query, header_message, output_filepath, target_articles=2, max_attempts=15, allowed_tickers=None, timeframe="24h"):
+def fetch_news_for_query(query, header_message, output_filepath, target_articles=2, max_attempts=15, allowed_tickers=None, timeframe="1h"):
     """Fetches Google News RSS for a query and processes until target is met or max is reached."""
     logger.debug(header_message)
     
