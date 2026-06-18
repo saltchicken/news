@@ -94,19 +94,19 @@ def print_recent_findings(hours=24, sentiment=None, compact=False):
             ''', (timeframe_start,))
         rows = cursor.fetchall()
 
-    logger.info(f"=== FINDINGS FROM THE PAST {hours} HOURS ===")
+    print(f"=== FINDINGS FROM THE PAST {hours} HOURS ===")
     if not rows:
-        logger.info(f"No findings recorded in the past {hours} hours.")
+        print(f"No findings recorded in the past {hours} hours.")
         return
 
     for row in rows:
         timestamp, ticker, sentiment, title, link, analysis, topic = row
         if compact:
-            logger.info(f"{ticker}: {analysis}")
+            print(f"{ticker}: {analysis}")
         else:
-            logger.info(f"{ticker}")
-            logger.info(f"   Topic: {topic}")
-            logger.info(f"   Sentiment: {sentiment}")
-            logger.info(f"   Title: {title}")
-            logger.info(f"   Link: {link}")
-            logger.info(f"   Analysis: {analysis}")
+            print(f"{ticker}")
+            print(f"   Topic: {topic}")
+            print(f"   Sentiment: {sentiment}")
+            print(f"   Title: {title}")
+            print(f"   Link: {link}")
+            print(f"   Analysis: {analysis}")
