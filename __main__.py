@@ -178,11 +178,14 @@ def process_article(article, output_filepath, allowed_tickers=None):
 
     return True
 
-def fetch_news_for_query(query, header_message, output_filepath, target_articles=2, max_attempts=15, allowed_tickers=None):
+def fetch_news_for_query(query, header_message, output_filepath, target_articles=2, max_attempts=15, allowed_tickers=None, timeframe="24h"):
     """Fetches Google News RSS for a query and processes until target is met or max is reached."""
     logger.debug(header_message)
     
-    encoded_topic = urllib.parse.quote_plus(query)
+    # Append the time constraint to the query to force recent articles
+    recent_query = f"{query} when:{timeframe}"
+    encoded_topic = urllib.parse.quote_plus(recent_query)
+    
     url = f"https://news.google.com/rss/search?q={encoded_topic}&hl=en-US&gl=US&ceid=US:en"
     feed = feedparser.parse(url)
 
