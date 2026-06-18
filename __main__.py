@@ -19,7 +19,6 @@ import trafilatura
 
 # Configuration
 OLLAMA_MODEL = "gemma4:e4b"
-BLACKLIST_FILE = "domain_blacklist.json"
 READ_ARTICLES_FILE = "read_articles.json"
 DISCOVERIES_FILE = "stock_discoveries.json"
 
@@ -77,7 +76,6 @@ def save_analysis(article_title, article_link, ticker_data, source, filepath):
 
 
 # Initialize global state
-BLACKLIST = load_json_set(BLACKLIST_FILE)
 READ_ARTICLES = load_json_set(READ_ARTICLES_FILE)
 
 
@@ -174,10 +172,6 @@ def process_article(article, output_filepath):
 
     domain = urllib.parse.urlparse(real_link).netloc
 
-    if domain in BLACKLIST:
-        logger.debug(f"Skipped: Domain '{domain}' is blacklisted.")
-        return False
-
     logger.debug(f"Processing: {article.title[:50]}... | {domain}")
 
     # --- THE WATERFALL FETCHING SYSTEM ---
@@ -205,11 +199,9 @@ def process_article(article, output_filepath):
             article, "description", "")
         extracted_text = clean_rss_summary(raw_summary)
 
-        # If even the failsafe yields practically nothing, only then do we blacklist
+        # If even the failsafe yields practically nothing, we skip the article
         if not extracted_text or len(extracted_text) < 100:
-            logger.warning(f"Complete failure. Blacklisting '{domain}'.")
-            BLACKLIST.add(domain)
-            save_json_set(BLACKLIST, BLACKLIST_FILE)
+            logger.warning(f"Complete failure. Skipping '{domain}'.")
             return False
 
     # --- PROCEED WITH AI ANALYSIS ---
