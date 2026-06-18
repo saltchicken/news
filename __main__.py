@@ -237,10 +237,8 @@ def process_article(article, output_filepath):
 def fetch_news_for_query(query,
                          header_message,
                          output_filepath,
-                         target_articles=2,
-                         max_attempts=15,
                          timeframe="1h"):
-    """Fetches Google News RSS for a query and processes until target is met or max is reached."""
+    """Fetches Google News RSS for a query and processes all articles found within the timeframe."""
     logger.debug(header_message)
 
     # Append the time constraint to the query to force recent articles
@@ -250,31 +248,14 @@ def fetch_news_for_query(query,
     url = f"https://news.google.com/rss/search?q={encoded_topic}&hl=en-US&gl=US&ceid=US:en"
     feed = feedparser.parse(url)
 
-    successful_articles = 0
-    total_attempts = 0
-
     for article in feed.entries:
-        if successful_articles >= target_articles:
-            logger.debug(
-                f"Reached target of {target_articles} successful articles for query."
-            )
-            break
-
-        if total_attempts >= max_attempts:
-            logger.warning(
-                f"Reached hard limit of {max_attempts} total attempts for query. Stopping."
-            )
-            break
-
-        total_attempts += 1
         success = process_article(article, output_filepath)
 
         if success:
-            successful_articles += 1
             time.sleep(random.uniform(1.5, 3.5))
 
 
-def fetch_discovery_news(target_articles=3):
+def fetch_discovery_news():
     """Fetches broad business and tech news to find new stocks."""
     topics = [
         "emerging technology breakthrough", "business acquisition rumors",
@@ -285,8 +266,7 @@ def fetch_discovery_news(target_articles=3):
         fetch_news_for_query(
             query=topic,
             header_message=f"Hunting for stocks in topic: {topic}",
-            output_filepath=DISCOVERIES_FILE,
-            target_articles=target_articles)
+            output_filepath=DISCOVERIES_FILE)
 
 
 def scheduled_job():
@@ -296,7 +276,7 @@ def scheduled_job():
     )
 
     # Look for new stock ideas in general tech/business news (Saves to stock_discoveries.json)
-    fetch_discovery_news(target_articles=2)
+    fetch_discovery_news()
 
 
 if __name__ == "__main__":
