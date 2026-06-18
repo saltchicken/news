@@ -18,12 +18,10 @@ from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 
 # Configuration
-TICKERS = ["AAPL", "MSFT", "TSLA", "SPCX", "T", "TGT", "PCG"]
 OLLAMA_MODEL = "gemma4:e4b"
 BLACKLIST_FILE = "domain_blacklist.json"
 READ_ARTICLES_FILE = "read_articles.json"
 DISCOVERIES_FILE = "stock_discoveries.json"
-PORTFOLIO_NEWS_FILE = "portfolio_news.json"
 
 # Configure Loguru
 logger.remove()
@@ -262,29 +260,12 @@ def fetch_discovery_news(target_articles=3):
             target_articles=target_articles
         )
 
-def fetch_stock_news(target_articles=2):
-    """Fetches top financial news for predefined tickers using Google News RSS."""
-    logger.debug("Fetching News for Portfolio Tickers")
-    
-    for ticker in TICKERS:
-        query = f"{ticker} stock market"
-        fetch_news_for_query(
-            query=query, 
-            header_message=f"Latest News for {ticker}:", 
-            output_filepath=PORTFOLIO_NEWS_FILE, 
-            target_articles=target_articles,
-            allowed_tickers=TICKERS
-        )
-
 def scheduled_job():
     """Wrapper function to run all news gathering tasks."""
     logger.debug(f"--- RUNNING SCHEDULED FETCH: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
     
-    # 1. Look for new stock ideas in general tech/business news (Saves to stock_discoveries.json)
+    # Look for new stock ideas in general tech/business news (Saves to stock_discoveries.json)
     fetch_discovery_news(target_articles=2)
-    
-    # 2. Check up on the existing portfolio (Saves to portfolio_news.json)
-    fetch_stock_news(target_articles=1)
 
 if __name__ == "__main__":
     scheduled_job()

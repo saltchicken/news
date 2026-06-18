@@ -8,4 +8,4 @@ st.set_page_config(
 
 st.title("📈 AI Stock News Dashboard")
 st.write("Welcome to your automated news analyzer.")
-st.info("👈 Use the sidebar to navigate between your Portfolio updates and new Stock Discoveries.")
+st.info("👈 Use the sidebar to navigate to your Stock Discoveries.")
