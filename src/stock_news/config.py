@@ -2,8 +2,7 @@ import sys
 from loguru import logger
 
 OLLAMA_MODEL = "gemma4:e4b"
-READ_ARTICLES_FILE = "read_articles.json"
-DISCOVERIES_FILE = "stock_discoveries.json"
+DB_FILE = "stock_news.db"
 
 def setup_logging():
     """Configures the central Loguru logger."""

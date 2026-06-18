@@ -6,12 +6,8 @@ from loguru import logger
 from playwright.sync_api import sync_playwright
 import trafilatura
 
-from stock_news.config import READ_ARTICLES_FILE
-from stock_news.utils import load_json_set, save_json_set, save_analysis
+from stock_news.utils import is_article_read, mark_article_read, save_analysis
 from stock_news.analyzer import analyze_for_stocks
-
-# Initialize global state for the fetcher
-READ_ARTICLES = load_json_set(READ_ARTICLES_FILE)
 
 def fetch_tier_1_curl(url):
     """Tier 1: High-speed request mimicking a standard Chrome browser TLS fingerprint."""
@@ -48,7 +44,7 @@ def clean_rss_summary(html_content):
     soup = BeautifulSoup(html_content, "html.parser")
     return soup.get_text(separator=" ", strip=True)
 
-def process_article(article, output_filepath):
+def process_article(article):
     """Decodes, extracts, and analyzes a single news article through a tiered fetching system."""
     decoded = gnewsdecoder(article.link)
     real_link = decoded.get("decoded_url") if decoded.get("status") else article.link
@@ -56,7 +52,7 @@ def process_article(article, output_filepath):
     if not real_link or not (real_link.startswith("http://") or real_link.startswith("https://")):
         return False
 
-    if real_link in READ_ARTICLES:
+    if is_article_read(real_link):
         return False
 
     domain = urllib.parse.urlparse(real_link).netloc
@@ -91,9 +87,8 @@ def process_article(article, output_filepath):
     else:
         tickers = [item.get("ticker", "UNKNOWN") for item in analysis_list]
         logger.info(f"AI Analysis [{article.source.title}]: Found {', '.join(tickers)}")
-        save_analysis(article.title, real_link, analysis_list, article.source.title, output_filepath)
+        save_analysis(article.title, real_link, analysis_list, article.source.title)
 
-    READ_ARTICLES.add(real_link)
-    save_json_set(READ_ARTICLES, READ_ARTICLES_FILE)
+    mark_article_read(real_link)
 
     return True

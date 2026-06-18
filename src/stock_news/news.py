@@ -4,10 +4,9 @@ import urllib.parse
 import feedparser
 from loguru import logger
 
-from stock_news.config import DISCOVERIES_FILE
 from stock_news.fetcher import process_article
 
-def fetch_news_for_query(query, header_message, output_filepath, timeframe="1h"):
+def fetch_news_for_query(query, header_message, timeframe="1h"):
     """Fetches Google News RSS for a query and processes all articles found within the timeframe."""
     logger.debug(header_message)
     recent_query = f"{query} when:{timeframe}"
@@ -17,7 +16,7 @@ def fetch_news_for_query(query, header_message, output_filepath, timeframe="1h")
     feed = feedparser.parse(url)
 
     for article in feed.entries:
-        success = process_article(article, output_filepath)
+        success = process_article(article)
         if success:
             time.sleep(random.uniform(1.5, 3.5))
 
@@ -31,6 +30,5 @@ def fetch_discovery_news():
     for topic in topics:
         fetch_news_for_query(
             query=topic,
-            header_message=f"Hunting for stocks in topic: {topic}",
-            output_filepath=DISCOVERIES_FILE
+            header_message=f"Hunting for stocks in topic: {topic}"
         )

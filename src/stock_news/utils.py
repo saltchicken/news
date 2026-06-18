@@ -1,42 +1,64 @@
-import json
-import os
+import sqlite3
 from datetime import datetime
 
-def load_json_set(filepath):
-    """Loads a JSON list as a set from a local file."""
-    if os.path.exists(filepath):
-        try:
-            with open(filepath, "r") as f:
-                return set(json.load(f))
-        except json.JSONDecodeError:
-            return set()
-    return set()
+from stock_news.config import DB_FILE
 
-def save_json_set(data_set, filepath):
-    """Saves a set as a JSON list to a local file."""
-    with open(filepath, "w") as f:
-        json.dump(list(data_set), f)
+def get_connection():
+    return sqlite3.connect(DB_FILE)
 
-def save_analysis(article_title, article_link, ticker_data, source, filepath):
-    """Appends individual AI ticker analysis to the specified structured JSON file."""
-    records = []
-    if os.path.exists(filepath):
-        try:
-            with open(filepath, "r") as f:
-                records = json.load(f)
-        except json.JSONDecodeError:
-            pass
+def init_db():
+    """Initializes the SQLite database schema."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS read_articles (
+                url TEXT PRIMARY KEY
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS discoveries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                source TEXT,
+                title TEXT,
+                link TEXT,
+                ticker TEXT,
+                sentiment TEXT,
+                analysis TEXT
+            )
+        ''')
+        conn.commit()
 
-    for item in ticker_data:
-        records.append({
-            "timestamp": datetime.now().isoformat(),
-            "source": source,
-            "title": article_title,
-            "link": article_link,
-            "ticker": item.get("ticker", "UNKNOWN"),
-            "sentiment": item.get("sentiment", "Neutral"),
-            "analysis": item.get("reason", "No reason provided.")
-        })
+def is_article_read(url):
+    """Checks if an article has already been processed."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM read_articles WHERE url = ?", (url,))
+        return cursor.fetchone() is not None
 
-    with open(filepath, "w") as f:
-        json.dump(records, f, indent=4)
+def mark_article_read(url):
+    """Marks an article as processed."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR IGNORE INTO read_articles (url) VALUES (?)", (url,))
+        conn.commit()
+
+def save_analysis(article_title, article_link, ticker_data, source):
+    """Saves AI ticker analysis to the SQLite database."""
+    timestamp = datetime.now().isoformat()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        for item in ticker_data:
+            cursor.execute('''
+                INSERT INTO discoveries (timestamp, source, title, link, ticker, sentiment, analysis)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                timestamp,
+                source,
+                article_title,
+                article_link,
+                item.get("ticker", "UNKNOWN"),
+                item.get("sentiment", "Neutral"),
+                item.get("reason", "No reason provided.")
+            ))
+        conn.commit()
