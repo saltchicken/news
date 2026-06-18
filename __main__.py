@@ -147,7 +147,7 @@ def clean_rss_summary(html_content):
     soup = BeautifulSoup(html_content, "html.parser")
     return soup.get_text(separator=" ", strip=True)
 
-def process_article(article, output_filepath, allowed_tickers=None):
+def process_article(article, output_filepath):
     """Decodes, extracts, and analyzes a single news article through a tiered fetching system."""
     decoded = gnewsdecoder(article.link)
     real_link = decoded.get("decoded_url") if decoded.get("status") else article.link
@@ -203,11 +203,8 @@ def process_article(article, output_filepath, allowed_tickers=None):
     if analysis_list == "ERROR":
         return False
 
-    if allowed_tickers:
-        analysis_list = [item for item in analysis_list if item.get("ticker") in allowed_tickers]
-
     if not analysis_list:
-        logger.debug("AI Analysis: No actionable/allowed stocks found in this article.")
+        logger.debug("AI Analysis: No actionable stocks found in this article.")
     else:
         tickers = [item.get("ticker", "UNKNOWN") for item in analysis_list]
         logger.info(f"AI Analysis [{article.source.title}]: Found {', '.join(tickers)}")
@@ -218,7 +215,7 @@ def process_article(article, output_filepath, allowed_tickers=None):
 
     return True
 
-def fetch_news_for_query(query, header_message, output_filepath, target_articles=2, max_attempts=15, allowed_tickers=None, timeframe="1h"):
+def fetch_news_for_query(query, header_message, output_filepath, target_articles=2, max_attempts=15, timeframe="1h"):
     """Fetches Google News RSS for a query and processes until target is met or max is reached."""
     logger.debug(header_message)
     
@@ -242,7 +239,7 @@ def fetch_news_for_query(query, header_message, output_filepath, target_articles
             break
 
         total_attempts += 1
-        success = process_article(article, output_filepath, allowed_tickers)
+        success = process_article(article, output_filepath)
 
         if success:
             successful_articles += 1
