@@ -99,14 +99,23 @@ def print_recent_findings(hours=24, sentiment=None, compact=False):
         print(f"No findings recorded in the past {hours} hours.")
         return
 
+    colors = {
+        "positive": "\033[32m",
+        "negative": "\033[31m",
+        "neutral": "\033[34m"
+    }
+    reset = "\033[0m"
+
     for row in rows:
         timestamp, ticker, sentiment, title, link, analysis, topic = row
+        color = colors.get(sentiment.lower(), "")
+
         if compact:
-            print(f"{ticker}: {analysis}")
+            print(f"{color}{ticker}: {analysis}{reset}")
         else:
-            print(f"{ticker}")
+            print(f"{color}{ticker}")
             print(f"   Topic: {topic}")
             print(f"   Sentiment: {sentiment}")
             print(f"   Title: {title}")
             print(f"   Link: {link}")
-            print(f"   Analysis: {analysis}")
+            print(f"   Analysis: {analysis}{reset}")
