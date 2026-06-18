@@ -15,7 +15,6 @@ dependencies = [
     "loguru",
     "ollama",
     "playwright",
-    "schedule",
     "trafilatura",
 ]
 
