@@ -1,10 +1,12 @@
 import random
 import time
 import urllib.parse
+
 import feedparser
 from loguru import logger
 
 from stock_news.fetcher import process_article
+
 
 def fetch_news_for_query(query, header_message, timeframe="1h"):
     """Fetches Google News RSS for a query and processes all articles found within the timeframe."""
@@ -16,19 +18,26 @@ def fetch_news_for_query(query, header_message, timeframe="1h"):
     feed = feedparser.parse(url)
 
     for article in feed.entries:
-        success = process_article(article)
+        success = process_article(article, query)
         if success:
             time.sleep(random.uniform(1.5, 3.5))
+
 
 def fetch_discovery_news():
     """Fetches broad business and tech news to find new stocks."""
     topics = [
-        "emerging technology breakthrough", "business acquisition rumors",
-        "supply chain disruption"
+        # Original topics
+        "emerging technology breakthrough",
+        "business acquisition rumors",
+        "supply chain disruption",
+
+        # New Earnings-specific topics
+        "earnings beat expectations revenue",
+        "slashes revenue forecast outlook",
+        "raises full year guidance",
+        "operating loss widens"
     ]
 
     for topic in topics:
         fetch_news_for_query(
-            query=topic,
-            header_message=f"Hunting for stocks in topic: {topic}"
-        )
+            query=topic, header_message=f"Hunting for stocks in topic: {topic}")

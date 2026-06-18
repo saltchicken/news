@@ -1,4 +1,5 @@
 import urllib.parse
+
 from bs4 import BeautifulSoup
 from curl_cffi import requests as curl_requests
 from googlenewsdecoder import gnewsdecoder
@@ -6,8 +7,11 @@ from loguru import logger
 from playwright.sync_api import sync_playwright
 import trafilatura
 
-from stock_news.utils import is_article_read, mark_article_read, save_analysis
 from stock_news.analyzer import analyze_for_stocks
+from stock_news.utils import is_article_read
+from stock_news.utils import mark_article_read
+from stock_news.utils import save_analysis
+
 
 def fetch_tier_1_curl(url):
     """Tier 1: High-speed request mimicking a standard Chrome browser TLS fingerprint."""
@@ -21,13 +25,15 @@ def fetch_tier_1_curl(url):
         logger.debug(f"Tier 1 exception: {e}")
         return None
 
+
 def fetch_tier_2_playwright(url):
     """Tier 2: Headless browser to render JavaScript and bypass moderate protections."""
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                user_agent=
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             )
             page.goto(url, wait_until="domcontentloaded", timeout=20000)
             html = page.content()
@@ -37,6 +43,7 @@ def fetch_tier_2_playwright(url):
         logger.debug(f"Tier 2 Playwright failed: {e}")
         return None
 
+
 def clean_rss_summary(html_content):
     """Utility to extract clean text from messy RSS summary payloads."""
     if not html_content:
@@ -44,12 +51,15 @@ def clean_rss_summary(html_content):
     soup = BeautifulSoup(html_content, "html.parser")
     return soup.get_text(separator=" ", strip=True)
 
-def process_article(article):
+
+def process_article(article, topic):
     """Decodes, extracts, and analyzes a single news article through a tiered fetching system."""
     decoded = gnewsdecoder(article.link)
-    real_link = decoded.get("decoded_url") if decoded.get("status") else article.link
+    real_link = decoded.get("decoded_url") if decoded.get(
+        "status") else article.link
 
-    if not real_link or not (real_link.startswith("http://") or real_link.startswith("https://")):
+    if not real_link or not (real_link.startswith("http://") or
+                             real_link.startswith("https://")):
         return False
 
     if is_article_read(real_link):
@@ -69,8 +79,10 @@ def process_article(article):
         extracted_text = trafilatura.extract(downloaded_html)
 
     if not extracted_text:
-        logger.warning(f"Tiers 1 & 2 failed for {domain}. Engaging Tier 3 RSS Failsafe.")
-        raw_summary = getattr(article, "summary", "") or getattr(article, "description", "")
+        logger.warning(
+            f"Tiers 1 & 2 failed for {domain}. Engaging Tier 3 RSS Failsafe.")
+        raw_summary = getattr(article, "summary", "") or getattr(
+            article, "description", "")
         extracted_text = clean_rss_summary(raw_summary)
 
         if not extracted_text or len(extracted_text) < 100:
@@ -86,8 +98,10 @@ def process_article(article):
         logger.debug("AI Analysis: No actionable stocks found in this article.")
     else:
         tickers = [item.get("ticker", "UNKNOWN") for item in analysis_list]
-        logger.info(f"AI Analysis [{article.source.title}]: Found {', '.join(tickers)}")
-        save_analysis(article.title, real_link, analysis_list, article.source.title)
+        logger.info(
+            f"AI Analysis [{article.source.title}]: Found {', '.join(tickers)}")
+        save_analysis(article.title, real_link, analysis_list,
+                      article.source.title, topic)
 
     mark_article_read(real_link)
 

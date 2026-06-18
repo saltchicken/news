@@ -1,9 +1,11 @@
 import json
 import re
-import ollama
+
 from loguru import logger
+import ollama
 
 from stock_news.config import OLLAMA_MODEL
+
 
 def analyze_for_stocks(text):
     """Passes extracted text to local Ollama instance to hunt for stock tickers and analyze sentiment."""
@@ -31,7 +33,8 @@ Article text:
         return tickers_found
 
     except json.JSONDecodeError:
-        logger.error(f"Failed to parse LLM JSON output. Raw output: {raw_output}")
+        logger.error(
+            f"Failed to parse LLM JSON output. Raw output: {raw_output}")
         return "ERROR"
     except Exception as e:
         logger.error(f"Ollama connection failed: {e}")
