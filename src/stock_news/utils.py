@@ -85,7 +85,7 @@ def print_recent_findings():
 
     for row in rows:
         timestamp, ticker, sentiment, title, link, analysis = row
-        logger.info(f"[{timestamp}] {ticker}")
+        logger.info(f"{ticker}")
         logger.info(f"   Sentiment: {sentiment}")
         logger.info(f"   Title: {title}")
         logger.info(f"   Link: {link}")
