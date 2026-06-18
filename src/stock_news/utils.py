@@ -70,7 +70,7 @@ def save_analysis(article_title, article_link, ticker_data, source, topic):
         conn.commit()
 
 
-def print_recent_findings(hours=24, sentiment=None):
+def print_recent_findings(hours=24, sentiment=None, compact=False):
     """Prints findings from the past specified hours, optionally filtered by sentiment."""
     timeframe_start = (datetime.now() - timedelta(hours=hours)).isoformat()
 
@@ -101,9 +101,12 @@ def print_recent_findings(hours=24, sentiment=None):
 
     for row in rows:
         timestamp, ticker, sentiment, title, link, analysis, topic = row
-        logger.info(f"{ticker}")
-        logger.info(f"   Topic: {topic}")
-        logger.info(f"   Sentiment: {sentiment}")
-        logger.info(f"   Title: {title}")
-        logger.info(f"   Link: {link}")
-        logger.info(f"   Analysis: {analysis}")
+        if compact:
+            logger.info(f"{ticker}: {analysis}")
+        else:
+            logger.info(f"{ticker}")
+            logger.info(f"   Topic: {topic}")
+            logger.info(f"   Sentiment: {sentiment}")
+            logger.info(f"   Title: {title}")
+            logger.info(f"   Link: {link}")
+            logger.info(f"   Analysis: {analysis}")

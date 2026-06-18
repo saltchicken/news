@@ -16,6 +16,7 @@ def main():
     parser.add_argument("--print", action="store_true", help="Print recent findings")
     parser.add_argument("--sentiment", type=str, choices=["Positive", "Negative", "Neutral", "positive", "negative", "neutral"], help="Filter findings by sentiment")
     parser.add_argument("--hours", type=int, default=24, help="Timeframe in hours for printing findings")
+    parser.add_argument("--compact", action="store_true", help="Print only ticker and analysis")
     
     args = parser.parse_args()
 
@@ -29,7 +30,7 @@ def main():
         fetch_discovery_news()
 
     if args.print:
-        print_recent_findings(hours=args.hours, sentiment=args.sentiment)
+        print_recent_findings(hours=args.hours, sentiment=args.sentiment, compact=args.compact)
 
 
 if __name__ == "__main__":
