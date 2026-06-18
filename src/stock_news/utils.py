@@ -1,5 +1,6 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
+from loguru import logger
 
 from stock_news.config import DB_FILE
 
@@ -62,3 +63,30 @@ def save_analysis(article_title, article_link, ticker_data, source):
                 item.get("reason", "No reason provided.")
             ))
         conn.commit()
+
+def print_recent_findings():
+    """Prints all findings from the past 24 hours sorted by most recent."""
+    twenty_four_hours_ago = (datetime.now() - timedelta(hours=24)).isoformat()
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT timestamp, ticker, sentiment, title, link, analysis
+            FROM discoveries
+            WHERE timestamp >= ?
+            ORDER BY timestamp DESC
+        ''', (twenty_four_hours_ago,))
+        rows = cursor.fetchall()
+
+    logger.info("=== FINDINGS FROM THE PAST 24 HOURS ===")
+    if not rows:
+        logger.info("No findings recorded in the past 24 hours.")
+        return
+
+    for row in rows:
+        timestamp, ticker, sentiment, title, link, analysis = row
+        logger.info(f"[{timestamp}] {ticker}")
+        logger.info(f"   Sentiment: {sentiment}")
+        logger.info(f"   Title: {title}")
+        logger.info(f"   Link: {link}")
+        logger.info(f"   Analysis: {analysis}")
