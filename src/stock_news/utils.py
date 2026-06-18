@@ -70,24 +70,33 @@ def save_analysis(article_title, article_link, ticker_data, source, topic):
         conn.commit()
 
 
-def print_recent_findings():
-    """Prints all findings from the past 24 hours sorted by most recent."""
-    twenty_four_hours_ago = (datetime.now() - timedelta(hours=24)).isoformat()
+def print_recent_findings(hours=24, sentiment=None):
+    """Prints findings from the past specified hours, optionally filtered by sentiment."""
+    timeframe_start = (datetime.now() - timedelta(hours=hours)).isoformat()
 
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            '''
-            SELECT timestamp, ticker, sentiment, title, link, analysis, topic
-            FROM discoveries
-            WHERE timestamp >= ?
-            ORDER BY timestamp DESC
-        ''', (twenty_four_hours_ago,))
+        if sentiment:
+            cursor.execute(
+                '''
+                SELECT timestamp, ticker, sentiment, title, link, analysis, topic
+                FROM discoveries
+                WHERE timestamp >= ? AND LOWER(sentiment) = LOWER(?)
+                ORDER BY timestamp DESC
+            ''', (timeframe_start, sentiment))
+        else:
+            cursor.execute(
+                '''
+                SELECT timestamp, ticker, sentiment, title, link, analysis, topic
+                FROM discoveries
+                WHERE timestamp >= ?
+                ORDER BY timestamp DESC
+            ''', (timeframe_start,))
         rows = cursor.fetchall()
 
-    logger.info("=== FINDINGS FROM THE PAST 24 HOURS ===")
+    logger.info(f"=== FINDINGS FROM THE PAST {hours} HOURS ===")
     if not rows:
-        logger.info("No findings recorded in the past 24 hours.")
+        logger.info(f"No findings recorded in the past {hours} hours.")
         return
 
     for row in rows:
