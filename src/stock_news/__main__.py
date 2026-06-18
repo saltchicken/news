@@ -271,7 +271,8 @@ def scheduled_job():
     fetch_discovery_news()
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for command line execution."""
     scheduled_job()
     schedule.every(60).minutes.do(scheduled_job)
 
@@ -279,3 +280,7 @@ if __name__ == "__main__":
     while True:
         schedule.run_pending()
         time.sleep(1)
+
+
+if __name__ == "__main__":
+    main()

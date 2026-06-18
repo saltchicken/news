@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stock-news"
+version = "0.1.0"
+description = "Stock news scraper and analyzer"
+requires-python = ">=3.9"
+dependencies = [
+    "beautifulsoup4",
+    "curl_cffi",
+    "feedparser",
+    "googlenewsdecoder",
+    "loguru",
+    "ollama",
+    "playwright",
+    "schedule",
+    "trafilatura",
+]
+
+[project.scripts]
+stock-news = "stock_news.__main__:main"
